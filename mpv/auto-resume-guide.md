@@ -1,39 +1,37 @@
-# MPV Auto-Resume Session Setup (Professional Guide)
+# MPV Auto-Resume Session Setup
 
-এই গাইডের মাধ্যমে `mpv` প্লেয়ার কনফিগার করা হয়েছে, যাতে এটি অটোমেটিকভাবে সর্বশেষ প্লে করা ফাইল বা URL এবং তার নির্দিষ্ট প্লেব্যাক পজিশন (টাইম) সেভ করে রাখে। পরবর্তীতে শুধু `mpv` কমান্ড দিয়ে চালু করলে ঠিক আগের জায়গা থেকেই ভিডিও শুরু হবে।
+This guide configures the `mpv` media player to automatically save the history of your last played file or URL, along with its exact playback position. The next time you launch `mpv` without any arguments, it will seamlessly resume from where you left off.
 
-## Step 1: প্রয়োজনীয় ডিরেক্টরি তৈরি করা
+## Step 1: Create Necessary Directories
 
-প্রথমে mpv-এর কনফিগারেশন, স্ক্রিপ্ট এবং হিস্ট্রি সেভ রাখার জন্য প্রয়োজনীয় ফোল্ডারগুলো তৈরি করে নিতে হবে। টার্মিনালে নিচের কমান্ডটি রান কর:
+First, create the required directories for mpv scripts, script options, and the watch-later history. Run the following command in your terminal:
 
 ```bash
 mkdir -p ~/.config/mpv/{scripts,script-opts} ~/.local/state/mpv/watch_later ~/.config/mpv/watch_later
 
 ```
 
-*(নোট: mpv ভার্সনের ওপর ভিত্তি করে `watch_later` ফোল্ডারের লোকেশন ভিন্ন হতে পারে, তাই দুটি লোকেশনই তৈরি করে রাখা নিরাপদ।)*
+*(Note: Depending on your mpv version and system, the `watch_later` directory might be read from different locations, so creating both ensures compatibility.)*
 
-## Step 2: `keep-session.lua` স্ক্রিপ্ট ইনস্টল করা
+## Step 2: Install the `keep-session.lua` Script
 
-এই লুয়া স্ক্রিপ্টটির কাজ হলো প্লেলিস্ট এবং URL-এর হিস্ট্রি মনে রাখা। গিটহাব থেকে সরাসরি স্ক্রিপ্টটি ডাউনলোড করে সঠিক ফোল্ডারে সেভ করতে নিচের কমান্ডটি ব্যবহার কর:
+This Lua script is responsible for remembering your playlist and URL history. Download it directly from GitHub into your scripts folder:
 
 ```bash
 curl -L https://raw.githubusercontent.com/CogentRedTester/mpv-scripts/master/keep-session.lua -o ~/.config/mpv/scripts/keep-session.lua
 
 ```
 
-## Step 3: স্ক্রিপ্ট কনফিগার করা (`keep_session.conf`)
+## Step 3: Configure the Script (`keep_session.conf`)
 
-স্ক্রিপ্টের ডিফল্ট সেটিংস ওভাররাইট করার জন্য `script-opts` ডিরেক্টরিতে একটি কনফিগারেশন ফাইল তৈরি করতে হবে।
-
-নিচের কমান্ডটি দিয়ে ফাইলটি তৈরি কর:
+To override the script's default settings and enable automatic saving and loading, create a configuration file in the `script-opts` directory:
 
 ```bash
 nano ~/.config/mpv/script-opts/keep_session.conf
 
 ```
 
-ফাইলের ভেতরে নিচের লাইনগুলো পেস্ট করে সেভ কর (`Ctrl + O`, `Enter`, `Ctrl + X`):
+Paste the following lines into the file, then save and exit (`Ctrl + O`, `Enter`, `Ctrl + X`):
 
 ```ini
 auto_save=yes
@@ -42,18 +40,16 @@ maintain_pos=yes
 
 ```
 
-## Step 4: MPV-এর মূল কনফিগারেশন (`mpv.conf`)
+## Step 4: Main MPV Configuration (`mpv.conf`)
 
-ভিডিওর টাইম (কত মিনিট/সেকেন্ডে বন্ধ করা হয়েছে) অটোমেটিক সেভ রাখার জন্য mpv-এর মূল কনফিগারেশনে একটি সেটিং যুক্ত করতে হবে।
-
-নিচের কমান্ডটি দিয়ে `mpv.conf` ওপেন কর:
+To ensure `mpv` always remembers the exact timestamp (playback position) when you quit, you need to add a line to your main `mpv.conf` file:
 
 ```bash
 nano ~/.config/mpv/mpv.conf
 
 ```
 
-ফাইলের একেবারে নিচে এই লাইনটি যুক্ত করে সেভ কর:
+Add the following line at the bottom of the file, then save and exit:
 
 ```ini
 save-position-on-quit=yes
@@ -62,21 +58,21 @@ save-position-on-quit=yes
 
 ---
 
-## Testing / ব্যবহারবিধি
+## Testing / Usage
 
-১. টার্মিনাল থেকে যেকোনো লোকাল ভিডিও বা ক্লাউড URL প্লে কর:
+1. Play any local video or cloud URL from your terminal:
 
 ```bash
 mpv "https://your-video-url-or-local-file.mkv"
 
 ```
 
-২. ভিডিওটি কিছুক্ষণ চলার পর কিবোর্ডের `Q` চেপে অথবা মাউস দিয়ে উইন্ডো ক্লোজ করে দাও।
-৩. এবার টার্মিনালে কোনো আর্গুমেন্ট ছাড়া শুধু নিচের কমান্ডটি দাও:
+2. Let the video play for a few seconds, then quit the player by pressing `Q` on your keyboard or closing the window.
+3. Now, launch mpv from the terminal without any arguments:
 
 ```bash
 mpv
 
 ```
 
-**রেজাল্ট:** সর্বশেষ চালানো ভিডিওটি ঠিক যে সেকেন্ডে বন্ধ করা হয়েছিল, সেখান থেকেই আবার প্লে হওয়া শুরু করবে!
+**Result:** The last played video will automatically load and resume from the exact second you closed it!
