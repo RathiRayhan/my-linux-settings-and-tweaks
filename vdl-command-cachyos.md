@@ -1,22 +1,52 @@
-# CachyOS Smart Media Downloader (`vdl`)> A professional, lightning-fast, and intelligent CLI media downloader wrapper built for CachyOS and Fish shell. It automatically routes downloads between `yt-dlp` (with native HLS/DASH fragment concurrency) and `aria2c` (multi-threaded direct file engine).
+# CachyOS Smart Media Downloader (`vdl`)
 
-1. ---## Table of Contents- [Overview](#overview)- [Key Features](#overview)- [Prerequisites](#prerequisites)- [Installation & Setup](#installation--setup)  - [yt-dlp Configuration
-](#1-yt-dlp-configuration)  - [2. vdl Fish Shell Function](#2-vdl-fish-shell-function)  - [3. Tab Auto-Completion](#3-tab-auto-completion)- [Usage Guide & Command Reference](#usage-guide--command-reference)- [Browser Integration (The Stream Detector)](#browser-integration-the-stream-detector)- [Troubleshooting & Corner Cases](#troubleshooting--corner-cases)
+> A professional, lightning-fast, and intelligent CLI media downloader wrapper built for CachyOS and Fish shell. It automatically routes downloads between `yt-dlp` (with native HLS/DASH fragment concurrency) and `aria2c` (multi-threaded direct file engine).
 
----## Overview
+---
 
-The `vdl` utility is designed to streamline media acquisition on Linux. Instead of manually juggling between terminal flags, extracting browser cookies, or dealing with throttled network streams, `vdl` intelligently inspects the target URL or leverages clipboard integration to execute the optimal download strategy.### Key Features* **Smart Auto-Routing:** Automatically uses `yt-dlp` native fragment downloader for streaming manifests (`.m3u8` / `.mpd`), switches to `yt-dlp + aria2c` for web video pages/playlists, and routes direct file downloads (`.zip`, `.iso`, `.mp4`) straight to `aria2c` with 16-thread multi-segment downloading.* **Clipboard Auto-Grab:** If invoked without arguments (`vdl`), it automatically reads the system clipboard (Wayland/X11) for valid URLs, eliminating manual pasting and shell wildcard errors with special characters (`?`, `&`).* **Zero-Clutter Playlist Management:** Single videos save directly to `~/Downloads`, while playlists automatically create clean subfolders with sequential numbering (`Playlist Title/01 - Video Title.mp4`).* **Browser Cookie Support:** Seamlessly integrates with Vivaldi (default), Firefox, Brave, Chrome, or Chromium via simple command-line flags.* **Professional Terminal UI:** Features a clean, non-breaking minimalist tree header (`╭─`, `├─`, `╰─`) displaying active engines, modes, and destination directories.
+## Table of Contents
+- [Overview](#overview)
+- [Key Features](#key-features)
+- [Prerequisites](#prerequisites)
+- [Installation & Setup](#installation--setup)
+  - [1. yt-dlp Configuration](#1-yt-dlp-configuration)
+  - [2. vdl Fish Shell Function](#2-vdl-fish-shell-function)
+  - [3. Tab Auto-Completion](#3-tab-auto-completion)
+- [Usage Guide & Command Reference](#usage-guide--command-reference)
+- [Browser Integration (The Stream Detector)](#browser-integration-the-stream-detector)
+- [Troubleshooting & Corner Cases](#troubleshooting--corner-cases)
 
----## Prerequisites
+---
 
-Ensure the following core dependencies are installed on your CachyOS system:```bash
+## Overview
+
+The `vdl` utility is designed to streamline media acquisition on Linux. Instead of manually juggling between terminal flags, extracting browser cookies, or dealing with throttled network streams, `vdl` intelligently inspects the target URL or leverages clipboard integration to execute the optimal download strategy.
+
+### Key Features
+* **Smart Auto-Routing:** Automatically uses `yt-dlp` native fragment downloader for streaming manifests (`.m3u8` / `.mpd`), switches to `yt-dlp + aria2c` for web video pages/playlists, and routes direct file downloads (`.zip`, `.iso`, `.mp4`) straight to `aria2c` with 16-thread multi-segment downloading.
+* **Clipboard Auto-Grab:** If invoked without arguments (`vdl`), it automatically reads the system clipboard (Wayland/X11) for valid URLs, eliminating manual pasting and shell wildcard errors with special characters (`?`, `&`).
+* **Zero-Clutter Playlist Management:** Single videos save directly to `~/Downloads`, while playlists automatically create clean subfolders with sequential numbering (`Playlist Title/01 - Video Title.mp4`).
+* **Browser Cookie Support:** Seamlessly integrates with Vivaldi (default), Firefox, Brave, Chrome, or Chromium via simple command-line flags.
+* **Professional Terminal UI:** Features a clean, non-breaking minimalist tree header (`╭─`, `├─`, `╰─`) displaying active engines, modes, and destination directories.
+
+---
+
+## Prerequisites
+
+Ensure the following core dependencies are installed on your CachyOS system:
+
+```bash
 sudo pacman -S yt-dlp aria2 ffmpeg
-Installation & Setup
-1. yt-dlp Configuration
-Create or overwrite your global yt-dlp configuration file to establish robust fallback timeouts, retry rules, and default formatting:
+```
 
-Code snippet
+---
 
+## Installation & Setup
+
+### 1. yt-dlp Configuration
+Create or overwrite your global `yt-dlp` configuration file to establish robust fallback timeouts, retry rules, and default formatting:
+
+```bash
 mkdir -p ~/.config/yt-dlp
 
 printf "%s\n" \
@@ -46,11 +76,12 @@ printf "%s\n" \
 "# Smart Output: Direct to ~/Downloads for single videos, or subfolder for Playlists" \
 "-P ~/Downloads" \
 "-o \"%(playlist_title&{}/|)s%(playlist_index&{} - |)s%(title).80B [%(id)s].%(ext)s\"" > ~/.config/yt-dlp/config
-2. vdl Fish Shell Function
-Define the core vdl function in your Fish shell configuration. Paste the following block into your terminal:
+```
 
-Code snippet
+### 2. vdl Fish Shell Function
+Define the core `vdl` function in your Fish shell configuration. Paste the following block into your terminal:
 
+```fish
 functions -e vdl 2>/dev/null
 
 function vdl --description "All-in-One Smart Downloader (yt-dlp + aria2c)"
@@ -227,11 +258,12 @@ function vdl --description "All-in-One Smart Downloader (yt-dlp + aria2c)"
 end
 
 funcsave vdl
-3. Tab Auto-Completion
+```
+
+### 3. Tab Auto-Completion
 Set up auto-completion so pressing Tab displays available flags and parameters:
 
-Code snippet
-
+```fish
 mkdir -p ~/.config/fish/completions
 
 printf "%s\n" \
@@ -242,23 +274,40 @@ printf "%s\n" \
 "complete -c vdl -s q -l quality -d 'Set max video resolution (Default: 1080)' -xa '360 480 720 1080 1440 2160 2k 4k'" \
 "complete -c vdl -s a -l audio -d 'Download audio only as MP3 (320kbps)'" \
 "complete -c vdl -s F -d 'List all available formats/resolutions of URL'" > ~/.config/fish/completions/vdl.fish
-Usage Guide & Command Reference
-ActionCommand ExampleDescriptionAuto-Grab ClipboardvdlReads clipboard URL automatically; no quoting needed.Standard Downloadvdl "[https://url.com/vid](https://url.com/vid)"Downloads up to 1080p MP4 using Vivaldi cookies.Custom Resolutionvdl -q 720 "[https://url.com/vid](https://url.com/vid)"Caps max resolution to 720p (supports 480, 720, 1080, 2k, 4k).Alternative Browservdl -b firefox "[https://url.com](https://url.com)"Uses Firefox cookies instead of the default Vivaldi.No Cookies (Public)vdl -n "[https://url.com](https://url.com)"Disables browser cookie extraction entirely.Audio Extractionvdl -a "[https://url.com](https://url.com)"Downloads best audio source converted directly to MP3.Direct File Downloadvdl "[https://site.com/file.iso](https://site.com/file.iso)"Bypasses stream parsing and uses 16-thread aria2c.Help Referencevdl -hDisplays the built-in minimalist reference screen.
-Browser Integration (The Stream Detector)
-For complex third-party streaming sites utilizing obfuscated manifests (.m3u8 / .mpd):
+```
 
-1. Install The Stream Detector extension in your browser.
-2. 
-3. Navigate to extension settings and configure "User-defined commands:" to:
-4. 
-5. Plaintext
-6. 
-7. vdl --user-agent "%useragent%" --referer "%origin%" "%url%"
-8. Set "Copy stream URL as:" to User-defined command 1. Clicking the extension icon will instantly pipe authenticated streaming headers into your local vdl function.
-9. 
-Troubleshooting & Corner Cases
-- Fish Shell Wildcards: URLs containing ? or & characters do not require quotation marks when using auto-clipboard grab (vdl), preventing shell globbing errors.
-- 
-- Direct File Detection: Standard extensions (.zip, .iso, .tar.zst, .mp4) skip extractor overhead, immediately handing off execution to aria2c.
-- 
-- Playlist Hierarchies: Playlists automatically generate designated subfolders inside ~/Downloads, keeping your root download directory organized.
+---
+
+## Usage Guide & Command Reference
+
+| Action | Command Example | Description |
+|---|---|---|
+| Auto-Grab Clipboard | `vdl` | Reads clipboard URL automatically; no quoting needed. |
+| Standard Download | `vdl "https://url.com/vid"` | Downloads up to 1080p MP4 using Vivaldi cookies. |
+| Custom Resolution | `vdl -q 720 "https://url.com/vid"` | Caps max resolution to 720p (supports 480, 720, 1080, 2k, 4k). |
+| Alternative Browser | `vdl -b firefox "https://url.com"` | Uses Firefox cookies instead of the default Vivaldi. |
+| No Cookies (Public) | `vdl -n "https://url.com"` | Disables browser cookie extraction entirely. |
+| Audio Extraction | `vdl -a "https://url.com"` | Downloads best audio source converted directly to MP3. |
+| Direct File Download | `vdl "https://site.com/file.iso"` | Bypasses stream parsing and uses 16-thread aria2c. |
+| Help Reference | `vdl -h` | Displays the built-in minimalist reference screen. |
+
+---
+
+## Browser Integration (The Stream Detector)
+
+For complex third-party streaming sites utilizing obfuscated manifests (`.m3u8` / `.mpd`):
+
+1. Install **The Stream Detector** extension in your browser.
+2. Navigate to extension settings and configure "User-defined commands:" to:
+   ```bash
+   vdl --user-agent "%useragent%" --referer "%origin%" "%url%"
+   ```
+3. Set "Copy stream URL as:" to **User-defined command 1**. Clicking the extension icon will instantly pipe authenticated streaming headers into your local `vdl` function.
+
+---
+
+## Troubleshooting & Corner Cases
+
+* **Fish Shell Wildcards:** URLs containing `?` or `&` characters do not require quotation marks when using auto-clipboard grab (`vdl`), preventing shell globbing errors.
+* **Direct File Detection:** Standard extensions (`.zip`, `.iso`, `.tar.zst`, `.mp4`) skip extractor overhead, immediately handing off execution to `aria2c`.
+* **Playlist Hierarchies:** Playlists automatically generate designated subfolders inside `~/Downloads`, keeping your root download directory organized.
