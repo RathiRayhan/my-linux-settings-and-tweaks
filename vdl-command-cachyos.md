@@ -76,8 +76,9 @@ printf "%s\n" \
 "--console-title" \
 "--merge-output-format mp4" \
 "" \
-"# Save inside ~/Downloads/vdl (Creates real subfolder ONLY for playlists/albums)" \
-"-P ~/Downloads/vdl" \
+"# Keep ~/Downloads/vdl clean: Store all .part & .Frag files in a hidden .tmp folder" \
+"-P \"home:~/Downloads/vdl\"" \
+"-P \"temp:~/Downloads/vdl/.tmp\"" \
 "-o \"%(playlist_title,album,NA)s/%(playlist_index&{} - |)s%(title).80B [%(id)s].%(ext)s\"" \
 "--replace-in-metadata \"playlist_title,album\" \"^NA\$\" \".\"" > ~/.config/yt-dlp/config
 ```
