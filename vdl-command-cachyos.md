@@ -53,6 +53,9 @@ printf "%s\n" \
 "# Default resolution cap: Prefer up to 1080p" \
 "-S \"res:1080\"" \
 "" \
+"# Impersonate Chrome to bypass Cloudflare 403" \
+"--impersonate chrome" \
+"" \
 "# Use yt-dlp native engine for HLS (.m3u8) and DASH (.mpd) with 8 concurrent fragments" \
 "--downloader m3u8:native" \
 "--downloader mpd:native" \
@@ -63,19 +66,20 @@ printf "%s\n" \
 "--continue" \
 "--no-overwrites" \
 "" \
-"# Automatically use aria2c (16 threads) for standard HTTP/HTTPS video streams" \
+"# Use aria2c (10 threads max per server to avoid SSL handshake drops) for HTTP/HTTPS" \
 "--downloader http:aria2c" \
 "--downloader https:aria2c" \
-"--downloader-args \"aria2c:-x 16 -s 16 -k 1M --file-allocation=none\"" \
+"--downloader-args \"aria2c:-x 10 -s 10 -k 1M --file-allocation=none --summary-interval=0\"" \
 "" \
 "# Clean progress bar and merge video streams into MP4" \
 "--progress" \
 "--console-title" \
 "--merge-output-format mp4" \
 "" \
-"# Smart Output: Direct to ~/Downloads for single videos, or subfolder for Playlists" \
-"-P ~/Downloads" \
-"-o \"%(playlist_title&{}/|)s%(playlist_index&{} - |)s%(title).80B [%(id)s].%(ext)s\"" > ~/.config/yt-dlp/config
+"# Save inside ~/Downloads/vdl (Creates real subfolder ONLY for playlists/albums)" \
+"-P ~/Downloads/vdl" \
+"-o \"%(playlist_title,album,NA)s/%(playlist_index&{} - |)s%(title).80B [%(id)s].%(ext)s\"" \
+"--replace-in-metadata \"playlist_title,album\" \"^NA\$\" \".\"" > ~/.config/yt-dlp/config
 ```
 
 ### 2. vdl Fish Shell Function
@@ -84,7 +88,7 @@ Define the core `vdl` function in your Fish shell configuration. Paste the follo
 ```fish
 functions -e vdl 2>/dev/null
 
-function vdl --description "All-in-One Smart Downloader (yt-dlp + aria2c)"
+function vdl --wraps=yt-dlp --description 'All-in-One Smart Downloader (yt-dlp + aria2c)'
     set -l browser "vivaldi"
     set -l res "1080"
     set -l res_custom 0
@@ -94,7 +98,7 @@ function vdl --description "All-in-One Smart Downloader (yt-dlp + aria2c)"
     set -l referer ""
     set -l args
     set -l urls
-
+    
     # 1. Parse all arguments & corner cases safely
     set -l i 1
     while test $i -le (count $argv)
@@ -144,7 +148,7 @@ function vdl --description "All-in-One Smart Downloader (yt-dlp + aria2c)"
         end
         set i (math $i + 1)
     end
-
+    
     # 2. Display Custom Help Menu if -h / --help / help is passed
     if test $show_help -eq 1
         echo ""
@@ -169,15 +173,15 @@ function vdl --description "All-in-One Smart Downloader (yt-dlp + aria2c)"
         set_color -o cyan;   printf "│\n"
         set_color -o cyan;   printf "╰─ >>  "; set_color -o yellow; printf "Examples:\n"
         set_color -o cyan;   printf "       "; set_color white;  echo "vdl                                  # Download link from clipboard"
-        set_color -o cyan;   printf "       "; set_color white;  echo "vdl \"[https://x.com/](https://x.com/)...\"              # 1080p MP4 with Vivaldi cookies"
+        set_color -o cyan;   printf "       "; set_color white;  echo "vdl \"https://x.com/...\"              # 1080p MP4 with Vivaldi cookies"
         set_color -o cyan;   printf "       "; set_color white;  echo "vdl -q 720 -b firefox \"<url>\"        # 720p MP4 with Firefox cookies"
         set_color -o cyan;   printf "       "; set_color white;  echo "vdl -a \"<url>\"                       # Download as MP3 audio"
-        set_color -o cyan;   printf "       "; set_color white;  echo "vdl -n \"[https://site.com/file.iso](https://site.com/file.iso)\"   # Fast direct file via aria2c"
+        set_color -o cyan;   printf "       "; set_color white;  echo "vdl -n \"https://site.com/file.iso\"   # Fast direct file via aria2c"
         set_color normal
         echo ""
         return 0
     end
-
+    
     # 3. Corner Case: If no URL given, auto-grab from Clipboard (Wayland/X11)
     if test (count $urls) -eq 0
         set -l clip ""
@@ -186,7 +190,7 @@ function vdl --description "All-in-One Smart Downloader (yt-dlp + aria2c)"
         else if command -q xclip
             set clip (xclip -o -selection clipboard 2>/dev/null | string trim)
         end
-
+        
         if string match -q -r '^https?://' -- "$clip"
             set -a urls "$clip"
             set -a args "$clip"
@@ -197,9 +201,9 @@ function vdl --description "All-in-One Smart Downloader (yt-dlp + aria2c)"
             return 1
         end
     end
-
+    
     set -l primary_url $urls[1]
-
+    
     # 4. Detect direct files (.zip, .iso, etc., plus direct .mp4/.mkv when not extracting audio)
     set -l is_direct_file 0
     if string match -q -i -r '\.(zip|rar|7z|iso|exe|msi|dmg|pkg|deb|rpm|appimage|flatpak|tar|gz|xz|zst|bz2|pdf|epub|apk|bin|img)(\?.*)?$' -- "$primary_url"
@@ -207,11 +211,11 @@ function vdl --description "All-in-One Smart Downloader (yt-dlp + aria2c)"
     else if test $audio_only -eq 0; and string match -q -i -r '\.(mp4|mkv|webm|avi|mov|flv)(\?.*)?$' -- "$primary_url"
         set is_direct_file 1
     end
-
+    
     # 5. Set dynamic display strings for Konsole header
     set -l engine_str "yt-dlp (auto: hlsnative 8x / aria2c 16x)"
     set -l mode_str "Video (Max "$res"p MP4)"
-
+    
     if test $is_direct_file -eq 1
         set engine_str "aria2c Direct Engine (16 threads)"
         set mode_str "Direct File / Video Download"
@@ -220,22 +224,23 @@ function vdl --description "All-in-One Smart Downloader (yt-dlp + aria2c)"
     else if string match -q -i -r '\.(m3u8|mpd)(\?.*)?$' -- "$primary_url"
         set engine_str "yt-dlp Native Stream Engine (8x fragments)"
     end
-
+    
     # 6. Print Minimalist, Non-Breaking Konsole Header
     echo ""
     set_color -o cyan;   printf "╭─[::] "; set_color -o white; echo "vdl // CachyOS Smart Downloader"
     set_color -o cyan;   printf "├─ >>  "; set_color normal;   printf "Engine   : "; set_color -o green;   echo "$engine_str"
     set_color -o cyan;   printf "├─ >>  "; set_color normal;   printf "Mode     : "; set_color -o blue;    echo "$mode_str"
     if test $is_direct_file -eq 0
-        set_color -o cyan; printf "├─ >>  "; set_color normal;   printf "Cookies  : "; set_color -o yellow;  echo "$browser"
+        set_color -o cyan; printf "├─ >>  "; set_color normal; printf "Cookies  : "; set_color -o yellow;  echo "$browser"
     end
-    set_color -o cyan;   printf "╰─ >>  "; set_color normal;   printf "Save Dir : "; set_color -o magenta; echo "~/Downloads"
+    set_color -o cyan;   printf "╰─ >>  "; set_color normal;   printf "Save Dir : "; set_color -o magenta; echo "~/Downloads/vdl"
     set_color normal
     echo ""
-
+    
     # 7. Execute appropriate engine
     if test $is_direct_file -eq 1
-        set -l aria_args -x 16 -s 16 -k 1M --continue=true --file-allocation=none -d ~/Downloads
+        # Fix: Direct files will now also save inside ~/Downloads/vdl
+        set -l aria_args -x 16 -s 16 -k 1M --continue=true --file-allocation=none -d ~/Downloads/vdl
         if test -n "$user_agent"
             set -a aria_args --user-agent="$user_agent"
         end
@@ -249,6 +254,7 @@ function vdl --description "All-in-One Smart Downloader (yt-dlp + aria2c)"
             set -a ytdlp_opts --cookies-from-browser $browser
         end
         if test $audio_only -eq 1
+            # Override video config rules cleanly for pure MP3 extraction
             set -a ytdlp_opts -f "bestaudio/best" -x --audio-format mp3 --audio-quality 0
         else if test $res_custom -eq 1
             set -a ytdlp_opts -S "res:$res"
